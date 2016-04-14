@@ -54,7 +54,7 @@
   (setf (profiler-last-result profiler)
         (let ((file (profiler-file profiler)))
           (when (probe-file file)
-            (format t "~&Parsing ~s" file)
+            (when verbose (format t "~&Parsing ~s" file))
             (read-sample-file file))))
   (ccl::impurify)
   (profiler-last-result profiler))
