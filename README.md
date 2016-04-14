@@ -1,7 +1,5 @@
 # sample-profiler
 
-## Usage
-
 Runs an external probabilistic sampling profiler over a lisp image, interprets
 its output, and produces an HTML file with the profiling results in the
 form of a collapsible call tree.  Each node in the tree shows the number of samples
@@ -9,18 +7,20 @@ followed by the description of the function sampled.
 
 Currently only works in CCL on MacOS X (using the `sample` program).
 
+## Usage
+
 The following symbols are defined in the `sample-profiler` package:
 
-`(start-profiling &key (seconds T) (verbose T) (output-file "profile.html"))`
+`(start-profiling &key (seconds T) (verbose nil) (output-file "profile.html"))`
 
-Starts profiling the current lisp image.  `seconds` can be a number to automatically stop profiling after that many seconds.  The default is `T` meaning don't stop until requested.  `output-file` specifies the default file to use for output.  The file is not actually created until `end-profiling` is called, and can be overridden at that time.
+Starts profiling the current lisp image.  `seconds` can be a number to automatically stop profiling after that many seconds.  The default is `T` meaning don't stop until requested.  `output-file` specifies the default file to use for output.  The file is not actually created until `end-profiling` is called, and can be overridden at that time.  If `verbose` is true, shows output from the external profiler process.
 
-`(end-profiling &key abort (verbose T) output-file)`
+`(end-profiling &key abort (verbose nil) output-file)`
 
-Ends the current profiling session.  If `abort` is specified, kills the profiler process without waiting for the result, otherwise tries to terminate gracefully and process the results into the output file.  if `output-file` is specified, it overrides the value given in the call to `start-profiling`.
+Ends the current profiling session.  If `abort` is specified, kills the profiler process without waiting for the result, otherwise tries to terminate gracefully and process the results into the output file.  if `output-file` is specified, it overrides the value given in the call to `start-profiling`.  If `verbose` is true, shows output from the external profiler process.
 
 
-`\*show-foreign-address\*`
+`*show-foreign-address*`
 
 If true, descriptions of foreign functions include their hex address.  The default is `NIL`.
 
@@ -41,7 +41,7 @@ If true, descriptions of foreign functions include their hex address.  The defau
 
 * Need global expand-all/collapse-all buttons.
 
-* Need a way to expand-all-children for any node.
+* Need an option to expand-all-children for any node.
 
 * There should be an option to automatically open a browser window with the output.  In the IDE, might want to open a webview within the CCL app.
 
