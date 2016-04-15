@@ -8,6 +8,8 @@
 
 (defvar *profiler* (make-profiler))
 
+(defvar *impurify-after-profile* nil)
+
 (defun start-profiling (&key (seconds T) (verbose nil) (output-file "profile.html") (profiler *profiler*))
   (when (eq seconds T) (setq seconds (* 60 60 24)))
   (check-type seconds (integer (0)))
@@ -56,7 +58,7 @@
           (when (probe-file file)
             (when verbose (format t "~&Parsing ~s" file))
             (read-sample-file file))))
-  (ccl::impurify)
+  (when *impurify-after-profile*  (ccl::impurify))
   (profiler-last-result profiler))
 
 (defun output-profiling (&key (profiler *profiler*) (file (profiler-output-file profiler)))
