@@ -336,28 +336,46 @@
       (and (address-pnode-p node)
            (member (address-pnode-area node) '(:cstack :tstack :vstack)))))
 
+(defun same-entry-p (n1 n2)
+  (and (eq (class-of n1) (class-of n2))
+       (equal (pnode-description n1) (pnode-description n2))))
+
+(defun normalize-nodes-list (nodes)
+  (let ((groups nil))
+    (loop for node in nodes
+       as a = (assoc node groups :test #'same-entry-p)
+       do (if a (push node (cdr a)) (push (list node) groups)))
+    (sort (loop for group in groups
+             as node = (car group)
+             do (when (cdr group)
+                  (setf (pnode-count node)
+                        (loop for n in group sum (pnode-count n)))
+                  (setf (pnode-children node)
+                        (normalize-nodes-list (loop for n in group nconc (pnode-children n)))))
+             collect node)
+          #'> :key #'pnode-count)))
 
 (defun simplify-sample-tree (tree)
   (labels ((simplify (node)
              ;; Simplify children
              (loop for child in (pnode-children node) do (simplify child))
-             ;; Remove ignorable children
+             ;; Remove ignorable child nodes
              (setf (pnode-children node)
-                   (loop for child in (pnode-children node)
-                      if (and (ignorable-node-p child)
-                              (eql (pnode-count child) ;; no direct count.
-                                   (loop for n in (pnode-children child) sum (pnode-count n))))
-                      nconc (pnode-children child)
-                      else collect child))
+                   (normalize-nodes-list
+                    (loop for child in (pnode-children node)
+                       if (and (ignorable-node-p child)
+                               (eql (pnode-count child) ;; no direct count.
+                                    (loop for n in (pnode-children child) sum (pnode-count n))))
+                       nconc (pnode-children child)
+                       else collect child)))
              ;; Remove child identical to parent -- I think this happens with recursion, but it's not
              ;; a reliable way to measure recursion anyway, so get rid of it.
              (let ((children (pnode-children node)))
                (when (and children
                           (null (cdr children))
                           (let ((child (car children)))
-                            (eq (class-of node) (class-of child))
-                            (eq (pnode-count node) (pnode-count child))
-                            (equal (pnode-description node) (pnode-description child))))
+                            (and (same-entry-p node child)
+                                 (eq (pnode-count node) (pnode-count child)))))
                  (setf (pnode-children node) (pnode-children (car children))))
                ;; Since child was already simplified, we're done.
                (return-from simplify))))
