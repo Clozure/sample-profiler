@@ -1,3 +1,5 @@
+;; Copyright (c) 2016 Clozure Associates LLC
+
 (in-package :sample-profiler)
 
 (defstruct profiler
