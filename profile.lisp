@@ -39,7 +39,20 @@
            do (when verbose (write-char ch))))))
   (values))
 
-(defun stop-profiler (&key abort (verbose nil) (profiler *profiler*))
+(defun end-profiling (&key abort (verbose nil) output-file (profiler *profiler*))
+  (stop-profiler profiler :abort abort :verbose verbose)
+  (unless abort
+    (read-profiling :profiler profiler :verbose verbose)
+    (when *impurify-after-profile* 
+      (when (eq verbose :debug) (format t "~&debug: Impurifying..."))
+      (ccl::impurify)
+      (when (eq verbose :debug) (format t "completed")))
+    (simplify-profiling :profiler profiler)
+    (when output-file
+      (setf (profiler-output-file profiler) output-file))
+    (output-profiling :profiler profiler)))
+
+(defun stop-profiler (profiler &key abort verbose)
   (let ((p (profiler-process profiler)))
     (setf (profiler-process profiler) nil)
     (when (eq verbose :debug) (format t "~&debug: About to ~a external process" (if abort "SIGKILL" "SIGINT")))
@@ -54,30 +67,23 @@
       (let ((stream (ccl:external-process-output-stream p)))
         (when (listen stream)
           (fresh-line)
-          (loop as ch = (read-char-no-hang stream nil) while ch do (write-char ch))))))
+          (loop as ch = (read-char-no-hang stream nil) while ch do (write-char ch)))))))
+
+(defun read-profiling (&key (verbose nil) (profiler *profiler*))
   (setf (profiler-last-result profiler)
         (let ((file (profiler-file profiler)))
           (when (probe-file file)
             (when verbose (format t "~&Parsing ~s" file))
-            (read-sample-file file :verbose verbose))))
-  (when *impurify-after-profile* 
-    (when (eq verbose :debug) (format t "~&debug: Impurifying..."))
-    (ccl::impurify)
-    (when (eq verbose :debug) (format t "completed")))
-  (profiler-last-result profiler))
+            (read-sample-file file :verbose verbose)))))
+
+(defun simplify-profiling (&key (profiler *profiler*))
+  (simplify-sample-tree (profiler-last-result profiler)))
 
 (defun output-profiling (&key (profiler *profiler*) (file (profiler-output-file profiler)))
   (assert (profiler-last-result profiler) ()
           "No profiling results available in ~s" profiler)
   (setf (profiler-output-file profiler) file)
   (output-sample-html (profiler-last-result profiler) file))
-
-(defun end-profiling (&key abort (verbose nil) output-file (profiler *profiler*))
-  (stop-profiler :abort abort :verbose verbose :profiler profiler)
-  (unless abort
-    (when output-file
-      (setf (profiler-output-file profiler) output-file))
-    (output-profiling :profiler profiler)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -361,9 +367,6 @@
   (let ((trees (parse-sample-call-graph file)))
     (when (eq verbose :debug) (format t "~&debug: looking up lisp addresses..."))
     (lookup-lisp-addresses trees)
-    (when (eq verbose :debug) (format t "done~%debug: simplifying tree.."))
-    ;; Todo: this can take place after impurify...
-    (simplify-sample-tree trees)
     (when (eq verbose :debug) (format t "done"))
     trees))
 
