@@ -42,12 +42,14 @@
 (defun stop-profiler (&key abort (verbose nil) (profiler *profiler*))
   (let ((p (profiler-process profiler)))
     (setf (profiler-process profiler) nil)
+    (when (eq verbose :debug) (format t "~&debug: About to ~a external process" (if abort "SIGKILL" "SIGINT")))
     (ccl:signal-external-process p (if abort #$SIGKILL #$SIGINT) :error-if-exited nil)
     (when (and (ccl:external-process-id p) (eq (ccl:external-process-status p) :running))
       ;; TODO: if abort is true, should time this out in fairly short order.  Maybe don't even
       ;; bother with the semaphore, just sleep a second and then proceed no matter what.
       (ccl:with-interrupts-enabled
         (ccl:wait-on-semaphore (ccl::external-process-completed p) nil "end-profiling")))
+    (when (eq verbose :debug) (format t "~&debug: External process completed"))
     (when verbose
       (let ((stream (ccl:external-process-output-stream p)))
         (when (listen stream)
@@ -57,8 +59,11 @@
         (let ((file (profiler-file profiler)))
           (when (probe-file file)
             (when verbose (format t "~&Parsing ~s" file))
-            (read-sample-file file))))
-  (when *impurify-after-profile*  (ccl::impurify))
+            (read-sample-file file :verbose verbose))))
+  (when *impurify-after-profile* 
+    (when (eq verbose :debug) (format t "~&debug: Impurifying..."))
+    (ccl::impurify)
+    (when (eq verbose :debug) (format t "completed")))
   (profiler-last-result profiler))
 
 (defun output-profiling (&key (profiler *profiler*) (file (profiler-output-file profiler)))
@@ -352,11 +357,14 @@
         (loop for node in tree do (simplify node))
         (simplify tree))))
 
-(defun read-sample-file (file)
+(defun read-sample-file (file &key verbose)
   (let ((trees (parse-sample-call-graph file)))
+    (when (eq verbose :debug) (format t "~&debug: looking up lisp addresses..."))
     (lookup-lisp-addresses trees)
-    ;; Todo: this can take place after purify...
+    (when (eq verbose :debug) (format t "done~%debug: simplifying tree.."))
+    ;; Todo: this can take place after impurify...
     (simplify-sample-tree trees)
+    (when (eq verbose :debug) (format t "done"))
     trees))
 
 
