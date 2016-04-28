@@ -1,0 +1,233 @@
+<meta charset="utf-8">
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<style>
+ul {
+  list-style: none;
+  padding-left: 0.5em;
+}
+li {
+  padding-left: 0.5em;
+}
+.filtered {
+  display: none;
+}
+.knob {
+  font-family: monospace;
+  color: gray;
+  display: block;
+  width: 0.8em;
+  text-align:center;
+  border: thin solid transparent;
+  float: left;
+  margin-right: 0.2em;
+}
+
+.kcls, .kopn {
+  cursor:pointer;
+}
+.pct {
+  font-family: monospace;
+  font-style: italic;
+  background-color: #efffff;
+  text-align: right;
+}
+</style>
+<script>
+
+function t_n (this_knob) {
+  var jknob = $(this_knob);
+  jknob.toggleClass('kcls kopn');
+  //jknob.html(jknob.hasClass('kcls') ? '+' : '-');
+  jknob.html(jknob.hasClass('kcls') ? '&#9654;' : '&#9660;');
+  jknob.siblings('ul').toggle();
+}
+
+function terminate_knob (this_knob) {
+  var jknob = $(this_knob);
+  jknob.data('p_s', knob.hasClass('kopn'));
+  jknob.removeClass('kcls kopn');
+  jknob.html('&nbsp;');
+  var ul = knob.siblings('ul');
+  if (ul != undefined) ul.hide();
+}
+
+function unterminate_knob (this_knob) {
+  var jknob = $(this_knob);
+  if (jknob.data('p_s')) {
+    jknob.addClass('kopn');
+    jknob.html('&#9660;');
+    jknob.siblings('ul').show();
+  } else {
+    jknob.addClass('kcls');
+    jknob.html('&#9654;');
+    jknob.siblings('ul').hide();
+  }
+}
+
+var all_ul_nodes;
+
+function get_all_uls () {
+  if (all_ul_nodes === undefined) {
+    all_ul_nodes = document.getElementsByTagName('ul');
+  }
+  return all_ul_nodes;
+}  
+
+function please_wait(msg, fn) {
+  $('#wait').text(msg + ' ...');
+  $('#tree').hide();
+  $('#wait').show();
+  window.setTimeout(function () {
+    fn();
+    $('#wait').hide();
+    $('#tree').show();
+  }, 50);
+}
+
+function expand_all () {
+  please_wait('Expanding All', function () {
+    var uls = get_all_uls();
+    for (var i = uls.length - 1; i >= 0; i--) {
+      var knob = $(uls[i].parentElement).children('.kcls')[0];
+      if (knob !== undefined) t_n(knob);
+    }
+  });
+}
+
+function collapse_all () {
+  var lis = $(tree).children('li');
+  for (var i = lis.length - 1; i >= 0; i--) {
+    var knob = $(lis[i]).children('.kopn')[0];
+    if (knob !== undefined) t_n(knob);
+  }
+}
+
+function jli_count (jli) {
+  var val = jli.data('p_c');
+  if (val === undefined) {
+    val = Number($(jli.children('.pct')[0]).text().replace(/\240/g,''));
+    jli.data('p_c', val);
+  }
+  return val;
+}
+
+var last_threshold = '';
+
+function maybe_enqueue (item, queue) {
+  if (item !== undefined) queue.push(item);
+}
+
+function apply_threshold () {
+  var txt = document.getElementById('threshold');
+  txt.value = txt.value.trim();
+  if (txt.value == last_threshold) return;
+  var th = (txt.value == '' ? 0 : Number(txt.value));
+
+  if (isNaN(th)) {
+    alert('Invalid filter amount: ' + txt.value );
+    txt.value = last_threshold;
+  } else {
+    please_wait('Applying Threshold Filter', function () {
+      // Can't do recursive descent because get stack overflow on complex trees.
+      var ul_queue = [ document.getElementById('tree') ];
+      while (ul_queue.length > 0) {
+        var ul = ul_queue.pop();
+        var lis = ul.children;
+        var had_children = false, has_children = false;
+        for (var i = lis.length - 1; i >= 0; i--) {
+           var jli = $(lis[i]);
+           var filtered = jli.hasClass('filtered');
+           if (!filtered) had_children = true;
+           if (jli_count(jli) < th) {
+             if (!filtered) jli.addClass('filtered');
+           } else {
+             if (filtered) jli.removeClass('filtered');
+             has_children = true;
+             maybe_enqueue(jli.children('ul')[0], ul_queue);
+           }
+        }
+        if  (has_children != had_children) {
+          var knob = $(ul.parentElement).children('.knob')[0];
+          if (has_children) unterminate_knob(knob);
+          else terminate_knob(knob);
+        }
+      }
+      last_threshold = txt.value;
+    });
+  }
+}
+
+function descend_singletons (jli) {
+  var jct = jli_count (jli);
+  while (true) {
+    var ul = jli.children('ul')[0];
+    if (ul === undefined) break;
+    var jsub = $(ul.children[0]);
+    if (jli_count(jsub) != jct) break;
+    if (jsub.hasClass('filtered')) break;
+    jli = jsub;
+  }
+  return jli;
+}
+
+function collapse_singletons () {
+  var ul_queue = [document.getElementById('tree')];
+  while (ul_queue.length > 0) {
+    var ul = ul_queue.pop();
+    var lis = ul.children;
+    for (var i = lis.length - 1; i >= 0; i--) {
+      var jli = $(lis[i]);
+      var jrep = descend_singletons(jli);
+      if (jrep != jli) {
+        jrep.data('p_s', [jli, jrep.parent()]);
+        if (jli.hasClass('filtered')) {
+          jrep.addClass('filtered');
+          jli.removeClass('filtered');
+        }
+        jrep.detach();
+        jrep.insertAfter(jli);
+        jli.detach();
+      }
+      maybe_enqueue(jrep.children('ul')[0], ul_queue);
+    }
+  }
+}
+
+
+function expand_singletons () {
+  var ul_queue = [document.getElementById('tree')];
+  while (ul_queue.length > 0) {
+    var ul = ul_queue.pop();
+    var lis = ul.children;
+    for (var i = lis.length - 1; i >= 0; i--) {
+      var jrep = $(lis[i]);
+      maybe_enqueue(jrep.children('ul')[0], ul_queue);
+      var info = jrep.data('p_s');
+      if (info !== undefined) {
+        jrep.removeData('p_s');
+        var jli = info[0];
+        if (jrep.hasClass('filtered')) {
+          jrep.removeClass('filtered');
+          jli.addClass('filtered');
+        }
+        jli.insertAfter(jrep);
+        jrep.detach();
+        jrep.appendTo(info[1]);
+
+      }
+    }
+  }
+}
+
+function handle_singletons (checked) {
+  if (checked)  please_wait('Collapsing Singletons', collapse_singletons)
+  else please_wait('Expanding Singletons', expand_singletons);
+}
+
+$(document).ready(function () {
+  $('#wait').hide();
+  $('#tree').show();
+});
+ 
+</script>
+

@@ -416,53 +416,24 @@
 ;;
 ;; html output
 
-(defparameter *html-head*  "
-  <meta charset=\"utf-8\">
-  <script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js\"></script>
-  <style>
-ul {
-  list-style: none;
-  padding-left: 0.5em;
-}
-li {
-  padding-left: 0.5em;
-}
-.knob {
-  font-family: monospace;
-  display: block;
-  width: 0.8em;
-  height: 0.8em;
-  text-align:center;
-  line-height: 0.8em;
-  border: thin solid transparent;
-  float: left;
-  margin-right: 0.2em;
-}
-.phid, .psho {
-  border-color: gray;
-  cursor:pointer;
-}
-.pct {
-  font-family: monospace;
-  font-style: italic;
-  background-color: #efffff;
-  text-align: right;
-}
-</style>
-<script>
-function t_n (this_knob) {
-  var knob = $(this_knob);
-  knob.toggleClass('phid psho');
-  knob.html(knob.hasClass('phid') ? '+' : '-');
-  knob.siblings('ul').toggle();
-}
+(defparameter *html-head*
+  (let ((buf (make-array 10000 :element-type 'character :adjustable t :fill-pointer 0)))
+    (with-open-file (f (merge-pathnames "profile-head.html" ccl:*loading-file-source-file*))
+      (loop for ch = (read-char f nil) while ch do (vector-push-extend ch buf)))
+    (coerce buf 'simple-string)))
 
-$(document).ready(function () {
-  $('#wait').hide();
-  $('#tree').show();
-});
- 
-</script>
+;;;; onkeypress='if (event.keyCode==13) this.blur();'
+
+(defparameter *settings-area-html*
+  "<label>Hide calls with count lower than </label><input id='threshold' type=text size=10
+ onblur='apply_threshold();'
+ onkeypress='if (event.keyCode==13) apply_threshold();'
+>
+<br>
+<label><input type=checkbox onclick='handle_singletons(this.checked);'> Collapse Singletons</label>
+<br>
+<button onclick='expand_all();'>Expand All</button>
+<button onclick='collapse_all();'>Collapse All</button>
 ")
 
 (defun output-sample-html (list file)
@@ -474,7 +445,11 @@ $(document).ready(function () {
 ~A
 </head>
 <body>
-" *html-head*)
+<hr />
+~A
+<hr />
+
+" *html-head* *settings-area-html*)
     (format stream " <div id='wait'>Loading Call Tree...</div>~%")
     (tree-list-to-html stream list 2 "tree")
     (format stream "
@@ -526,7 +501,7 @@ $(document).ready(function () {
 	     (format stream "~&~vt<li>" indent)
              ;; Setting this up with javascript is too slow on large trees, so just put it inline.
              (if (pnode-children node)
-               (format stream "<span class='knob phid' onclick='t_n(this);'>+</span>")
+               (format stream "<span class='knob kcls' onclick='t_n(this);'>&#9654;</span>")
                (format stream "<span class='knob'>&nbsp;</span>"))
 	     (format-tree-line stream node max10)
 	     (output-lis stream (pnode-children node) (1+ indent) nil max10)

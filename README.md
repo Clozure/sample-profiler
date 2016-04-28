@@ -33,16 +33,14 @@ If true, descriptions of foreign functions include their hex address.  The defau
 
 * In addition to the count, should show percentage of total samples.
 
-* Need an option to filter out all entries below certain percentage of total samples.
-
-* Need an option to collapse singletons, i.e. single-branch trees.
+* Should be able to filter on percentage, not just count
 
 * Should combine sibling entries of the same lisp function into one entry.
 
-* Need global expand-all/collapse-all buttons.
-
 * Need an option to expand-all-children for any node.
 
+* Need an option to set root to any node (i.e. focus on a branch).
+
+* Option to combine samples at different offsets of the same function.
+
 * There should be an option to automatically open a browser window with the output.  In the IDE, might want to open a webview within the CCL app.
-
-
