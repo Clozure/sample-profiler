@@ -35,6 +35,8 @@ If true, descriptions of foreign functions include their hex address.  The defau
 
 * Should be able to filter on percentage, not just count
 
+* Should be able to specify expand to max depth
+
 * Should combine sibling entries of the same lisp function into one entry.
 
 * Need an option to expand-all-children for any node.
