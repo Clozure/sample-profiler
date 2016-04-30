@@ -44,10 +44,10 @@ function t_n (this_knob) {
 
 function terminate_knob (this_knob) {
   var jknob = $(this_knob);
-  jknob.data('p_s', knob.hasClass('kopn'));
+  jknob.data('p_s', jknob.hasClass('kopn'));
   jknob.removeClass('kcls kopn');
   jknob.html('&nbsp;');
-  var ul = knob.siblings('ul');
+  var ul = jknob.siblings('ul');
   if (ul != undefined) ul.hide();
 }
 
@@ -174,10 +174,12 @@ function collapse_singletons () {
   var ul_queue = [document.getElementById('tree')];
   while (ul_queue.length > 0) {
     var ul = ul_queue.pop();
+    // do not collapse toplevel elements
+    var collapse = (ul.parentElement.tagName == "LI");
     var lis = ul.children;
     for (var i = lis.length - 1; i >= 0; i--) {
       var jli = $(lis[i]);
-      var jrep = descend_singletons(jli);
+      var jrep = (collapse ? descend_singletons(jli) : jli);
       if (jrep != jli) {
         jrep.data('p_s', [jli, jrep.parent()]);
         if (jli.hasClass('filtered')) {
